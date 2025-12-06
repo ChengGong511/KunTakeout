@@ -27444,8 +27444,8 @@
             onShow: function onShow() {
               var _this = this;
               // 檢查是否有新選擇的地址
-              if (_this.addressData() && _this.addressData().detail) {
-                var newAddress = _this.addressData();
+              var newAddress = _this.addressData();
+              if (newAddress && newAddress.detail) {
                 var newAddressBookId = newAddress.id;
                 // 如果地址ID改變了，檢查配送範圍
                 if (newAddressBookId && newAddressBookId !== _this.addressBookId) {
@@ -27699,7 +27699,7 @@
                   } else {
                     _this7.isHandlePy = false;
                     // 使用統一的錯誤處理方法，特別處理配送範圍錯誤
-                    _this7.handleDeliveryError(res.msg || '操作失败');
+                    _this7.handleDeliveryError(res.msg || '操作失敗');
                   }
                 }).catch(function(err) {
                   _this7.isHandlePy = false;
