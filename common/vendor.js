@@ -27445,10 +27445,10 @@
               var _this = this;
               // 檢查是否有新選擇的地址
               var newAddress = _this.addressData();
-              if (newAddress && newAddress.detail) {
+              if (newAddress && newAddress.detail && newAddress.id) {
                 var newAddressBookId = newAddress.id;
                 // 如果地址ID改變了，檢查配送範圍
-                if (newAddressBookId && newAddressBookId !== _this.addressBookId) {
+                if (newAddressBookId !== _this.addressBookId) {
                   _this.checkDeliveryRange(newAddressBookId);
                 }
               }
@@ -27489,7 +27489,9 @@
                       // 配送範圍內
                       var data = res.data.data;
                       _this.deliveryDistance = data.distance;
-                      var estimatedTime = data.estimatedTime || 30;
+                      // 預設配送時間為30分鐘（需求規定）
+                      var DEFAULT_DELIVERY_TIME = 30;
+                      var estimatedTime = data.estimatedTime || DEFAULT_DELIVERY_TIME;
                       _this.arrivalTime = '約' + estimatedTime + '分鐘';
                       uni.showToast({
                         title: '配送範圍內，預計' + estimatedTime + '分鐘送達',
@@ -27503,6 +27505,7 @@
                   },
                   fail: function(err) {
                     uni.hideLoading();
+                    console.error('配送範圍檢查失敗:', err);
                     uni.showToast({
                       title: '網絡請求失敗',
                       icon: 'none',
@@ -27516,9 +27519,11 @@
                 var _this = this;
                 // 檢查是否超出配送範圍
                 if (errorMsg && errorMsg.indexOf('超出配送範圍') !== -1) {
+                  // 配送範圍限制為10公里（需求規定）
+                  var DELIVERY_RANGE_LIMIT = '10公里';
                   uni.showModal({
                     title: '提示',
-                    content: '抱歉，您的地址超出配送範圍（10公里），請重新選擇地址',
+                    content: '抱歉，您的地址超出配送範圍（' + DELIVERY_RANGE_LIMIT + '），請重新選擇地址',
                     showCancel: true,
                     cancelText: '取消',
                     confirmText: '重新選擇',
@@ -27703,6 +27708,7 @@
                   }
                 }).catch(function(err) {
                   _this7.isHandlePy = false;
+                  console.error('訂單提交失敗:', err);
                   uni.showToast({
                     title: '網絡請求失敗',
                     icon: 'none'
