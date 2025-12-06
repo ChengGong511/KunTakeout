@@ -27345,7 +27345,8 @@
                 weeks: [],
                 scrollTop: 0,
                 addressList: [],
-                isHandlePy: false
+                isHandlePy: false,
+                deliveryDistance: 0  // 配送距離（米）
               };
 
             },
@@ -27440,6 +27441,18 @@
               });
 
             },
+            onShow: function onShow() {
+              var _this = this;
+              // 檢查是否有新選擇的地址
+              var newAddress = _this.addressData();
+              if (newAddress && newAddress.detail && newAddress.id) {
+                var newAddressBookId = newAddress.id;
+                // 如果地址ID改變了，檢查配送範圍
+                if (newAddressBookId !== _this.addressBookId) {
+                  _this.checkDeliveryRange(newAddressBookId);
+                }
+              }
+            },
             methods: _objectSpread(_objectSpread(_objectSpread({},
                 (0, _vuex.mapState)(['shopInfo', 'orderListData', 'arrivals', 'remarkData', 'addressData'])),
               (0, _vuex.mapMutations)(['setAddressBackUrl', 'setOrderData', 'setArrivalTime', 'setRemark'])), {}, {
@@ -27450,6 +27463,92 @@
               initPlatform: function initPlatform() {
                 var res = uni.getSystemInfoSync();
                 this.platform = res.platform;
+              },
+              // 檢查配送範圍
+              checkDeliveryRange: function checkDeliveryRange(addressBookId) {
+                var _this = this;
+                uni.showLoading({
+                  title: '檢查配送範圍中...',
+                  mask: true
+                });
+
+                var token = uni.getStorageSync('token');
+                uni.request({
+                  url: _env.baseUrl + '/user/order/checkDelivery',
+                  method: 'POST',
+                  header: {
+                    'Content-Type': 'application/json',
+                    'token': token
+                  },
+                  data: {
+                    addressBookId: addressBookId
+                  },
+                  success: function(res) {
+                    uni.hideLoading();
+                    if (res.data.code === 1) {
+                      // 配送範圍內
+                      var data = res.data.data;
+                      _this.deliveryDistance = data.distance;
+                      // 預設配送時間為30分鐘（需求規定）
+                      var DEFAULT_DELIVERY_TIME = 30;
+                      var estimatedTime = data.estimatedTime || DEFAULT_DELIVERY_TIME;
+                      _this.arrivalTime = '約' + estimatedTime + '分鐘';
+                      uni.showToast({
+                        title: '配送範圍內，預計' + estimatedTime + '分鐘送達',
+                        icon: 'success',
+                        duration: 2000
+                      });
+                    } else {
+                      // 配送範圍外或其他錯誤
+                      _this.handleDeliveryError(res.data.msg || '配送範圍檢查失敗');
+                    }
+                  },
+                  fail: function(err) {
+                    uni.hideLoading();
+                    console.error('配送範圍檢查失敗:', err);
+                    uni.showToast({
+                      title: '網絡請求失敗',
+                      icon: 'none',
+                      duration: 2000
+                    });
+                  }
+                });
+              },
+              // 處理配送範圍錯誤
+              handleDeliveryError: function handleDeliveryError(errorMsg) {
+                var _this = this;
+                // 檢查是否超出配送範圍
+                if (errorMsg && errorMsg.indexOf('超出配送範圍') !== -1) {
+                  // 配送範圍限制為10公里（需求規定）
+                  var DELIVERY_RANGE_LIMIT = '10公里';
+                  uni.showModal({
+                    title: '提示',
+                    content: '抱歉，您的地址超出配送範圍（' + DELIVERY_RANGE_LIMIT + '），請重新選擇地址',
+                    showCancel: true,
+                    cancelText: '取消',
+                    confirmText: '重新選擇',
+                    success: function(res) {
+                      if (res.confirm) {
+                        // 清空地址信息
+                        _this.address = '';
+                        _this.nickName = '';
+                        _this.phoneNumber = '';
+                        _this.addressBookId = '';
+                        _this.addressLabel = '';
+                        _this.tagLabel = '';
+                        // 跳轉到地址選擇頁面
+                        _this.goAddress();
+                      }
+                    }
+                  });
+                } else {
+                  // 其他錯誤
+                  uni.showToast({
+                    title: errorMsg || '操作失敗',
+                    icon: 'none',
+                    duration: 2000
+                  });
+                }
               },
               // 获取一小时以后的时间
               getHarfAnOur: function getHarfAnOur() {
@@ -27511,6 +27610,8 @@
                     _this5.addressBookId = res.data.id;
                     _this5.addressLabel = (0, _index.getLableVal)(res.data.label);
                     _this5.tagLabel = res.data.label;
+                    // 檢查配送範圍
+                    _this5.checkDeliveryRange(res.data.id);
                   }
                 });
               },
@@ -27601,12 +27702,17 @@
                     });
 
                   } else {
-                    uni.showToast({
-                      title: res.msg || '操作失败',
-                      icon: 'none'
-                    });
-
+                    _this7.isHandlePy = false;
+                    // 使用統一的錯誤處理方法，特別處理配送範圍錯誤
+                    _this7.handleDeliveryError(res.msg || '操作失敗');
                   }
+                }).catch(function(err) {
+                  _this7.isHandlePy = false;
+                  console.error('訂單提交失敗:', err);
+                  uni.showToast({
+                    title: '網絡請求失敗',
+                    icon: 'none'
+                  });
                 });
               },
               // 拨打电话
